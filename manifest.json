@@ -16,7 +16,7 @@
 	"background": {
 		"scripts": ["background.js"]
 	},
-	"permissions": ["tabs", "storage", "*://*.vk.com/*"],
+	"permissions": ["storage", "*://*.vk.com/*"],
 	"browser_action": {
 		"default_icon": "button_icon.png",
 		"default_title": "Перейти к диалогам"
