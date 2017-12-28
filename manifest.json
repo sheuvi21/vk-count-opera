@@ -12,13 +12,14 @@
 		"48": "icon48.png",
 		"128": "icon128.png"
 	},
-	"version": "0.1",
+	"version": "0.2",
 	"background": {
 		"scripts": ["background.js"]
 	},
-	"permissions": ["storage", "*://*.vk.com/*"],
+	"permissions": ["storage", "notifications", "*://*.vk.com/*", "*://*.userapi.com/*"],
 	"browser_action": {
 		"default_icon": "button_icon.png",
 		"default_title": "Перейти к диалогам"
-	}
+	},
+	"options_page": "options.html"
 }

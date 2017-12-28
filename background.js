@@ -1,20 +1,27 @@
+const API_VERSION = '5.60';
+const TOKEN_STORAGE = 'vk_access_token';
+const NOTIFY_STORAGE = 'notify';
+const LAST_MESSAGE_ID_STORAGE = 'last_message_id';
+
 var app = {
 
 	data: {
-		storageField: 'vk_access_token',
 		interval: 5000,
 		timerId: false,
 		token: false,
-		authUrl: 'https://oauth.vk.com/authorize?'+
-			'client_id=5801053&'+
-			'display=page&'+
-			'redirect_uri=https://oauth.vk.com/blank.html&'+
-			'scope=messages,offline&'+
-			'response_type=token&'+
-			'v=5.60',
-		methodUrl: 'https://api.vk.com/method/messages.getDialogs?'+
-		'v=5.60&'+
-		'unread=1&'+
+		authUrl: 'https://oauth.vk.com/authorize?' +
+			'client_id=5801053&' +
+			'display=page&' +
+			'redirect_uri=https://oauth.vk.com/blank.html&' +
+			'scope=messages,offline&' +
+			'response_type=token&' +
+			'v=' + API_VERSION,
+		getDialogsUrl: 'https://api.vk.com/method/messages.getDialogs?' +
+		'v=' + API_VERSION + '&' +
+		'unread=1&' +
+		'access_token=',
+		getUsersUrl: 'https://api.vk.com/method/users.get?' +
+		'v=' + API_VERSION + '&' +
 		'access_token=',
 		dialogsUrl: 'https://vk.com/im',
 		inactiveColor: '#A6A6A6',
@@ -25,27 +32,86 @@ var app = {
 		init: function() {
 			chrome.browserAction.setBadgeBackgroundColor({ 'color': app.data.inactiveColor });
 			chrome.browserAction.setBadgeText({ 'text': '?' });
-			chrome.storage.local.get([app.data.storageField], function(items) {
-				if (items[app.data.storageField] !== undefined) {
-					app.data.token = items[app.data.storageField];
+			chrome.storage.local.get([TOKEN_STORAGE, NOTIFY_STORAGE, LAST_MESSAGE_ID_STORAGE], function(storage) {
+				if (storage[TOKEN_STORAGE] !== undefined) {
+					app.data.token = storage[TOKEN_STORAGE];
 					if (app.data.timerId !== false) {
 						clearInterval(app.data.timerId);
 					}
 					app.data.timerId = setInterval(app.actions.sync, app.data.interval);
 				}
+				if (storage[NOTIFY_STORAGE] === undefined) {
+					app.actions.setStorageValue(NOTIFY_STORAGE, true);
+				}
+				if (storage[LAST_MESSAGE_ID_STORAGE] === undefined) {
+					app.actions.setStorageValue(LAST_MESSAGE_ID_STORAGE, 0);
+				}
 			});
 		},
 		sync: function() {
-			app.helpers.sendRequest(app.data.methodUrl + app.data.token, function(responseText) {
-				var response = JSON.parse(responseText);
+			app.helpers.sendRequest(app.data.getDialogsUrl + app.data.token, function(response) {
 				var count = response['response']['count'];
 				if (count > 0) {
 					chrome.browserAction.setBadgeBackgroundColor({ 'color': app.data.activeColor });
+					var items = response['response']['items'];
+					var messages = [];
+					chrome.storage.local.get([LAST_MESSAGE_ID_STORAGE], function(storage) {
+						var lastMessageId = storage[LAST_MESSAGE_ID_STORAGE];
+						items.forEach(function(item) {
+							var message = item['message'];
+							if (message['id'] > lastMessageId) {
+								messages.push(message);
+							}
+						});
+						if (messages.length > 0) {
+							chrome.storage.local.get([NOTIFY_STORAGE], function(storage) {
+								var notify = storage[NOTIFY_STORAGE];
+								if (notify) {
+									messages.sort(function(a, b) {
+										return a['id'] - b['id'];
+									});
+									app.actions.showNotifications(messages);
+									var lastMessage = messages[messages.length - 1];
+									app.actions.setStorageValue(LAST_MESSAGE_ID_STORAGE, lastMessage['id']);
+								}
+							});
+						}
+					});
 				}
 				else {
 					chrome.browserAction.setBadgeBackgroundColor({ 'color': app.data.inactiveColor });
 				}
 				chrome.browserAction.setBadgeText({ 'text': count.toString() });
+			});
+		},
+		setStorageValue: function(name, value) {
+			var values = {};
+			values[name] = value;
+			chrome.storage.local.set(values);
+		},
+		showNotifications: function(messages) {
+			var userIds = [];
+			messages.forEach(function(message) {
+				userIds.push(message['user_id']);
+			});
+			app.helpers.sendRequest(app.data.getUsersUrl + app.data.token +
+				'&user_ids=' + userIds.join() +
+				'&name_case=gen' + // имя в родительном падеже
+				'&fields=first_name,last_name,photo_50', function(response) {
+				var items = response['response'];
+				var users = {};
+				items.forEach(function(item) {
+					users[item['id']] = item;
+				});
+				messages.forEach(function(message) {
+					var user = users[message['user_id']];
+					chrome.notifications.create(message['id'].toString(), {
+						type: 'basic',
+						title: 'Сообщение от ' + user['first_name'] + ' ' + user['last_name'],
+						message: message['body'],
+						iconUrl: user['photo_50']
+					});
+				});
 			});
 		}
 	},
@@ -67,9 +133,7 @@ var app = {
 								}
 								app.data.timerId = setInterval(app.actions.sync, app.data.interval);
 								chrome.tabs.remove(tabId);
-								var values = {};
-								values[app.data.storageField] = app.data.token;
-								chrome.storage.local.set(values);
+								app.actions.setStorageValue(TOKEN_STORAGE, app.data.token);
 							}
 						});
 					});
@@ -88,7 +152,7 @@ var app = {
 					return;
 				}
 				if (this.status == 200) {
-					callback(this.responseText);
+					callback(JSON.parse(this.responseText));
 				}
 			}
 		}
