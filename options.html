@@ -5,10 +5,25 @@
 	<meta charset="utf-8">
 </head>
 <body>
-<label>
-	<input type="checkbox" id="notify">
-	Включить всплывающие уведомления о новых сообщениях
-</label>
+<div>
+	<p class="block-title">Основные настройки:</p>
+	<label>
+		<input type="checkbox" id="notify">
+		Включить всплывающие уведомления о новых сообщениях
+	</label>
+</div>
+<div>
+	<p class="block-title">Расширенные настройки:</p>
+	<label>
+		<input type="checkbox" id="use_web_api">
+		Использовать Web Notifications вместо Rich Notifications
+	</label>
+</div>
 <script src="options.js"></script>
+<style>
+.block-title {
+	font-weight: bold;
+}
+</style>
 </body>
 </html>

@@ -2,6 +2,7 @@ const API_VERSION = '5.60';
 const TOKEN_STORAGE = 'vk_access_token';
 const NOTIFY_STORAGE = 'notify';
 const LAST_MESSAGE_ID_STORAGE = 'last_message_id';
+const USE_WEB_API_STORAGE = 'use_web_api';
 
 var app = {
 
@@ -100,16 +101,37 @@ var app = {
 				items.forEach(function(item) {
 					users[item['id']] = item;
 				});
-				messages.forEach(function(message) {
-					var user = users[message['user_id']];
-					chrome.notifications.create(message['id'].toString(), {
-						type: 'basic',
-						title: 'Сообщение от ' + user['first_name'] + ' ' + user['last_name'],
-						message: message['body'],
-						iconUrl: user['photo_50']
+				chrome.storage.local.get([USE_WEB_API_STORAGE], function(storage) {
+					var useWebApi = storage[USE_WEB_API_STORAGE] === true;
+					messages.forEach(function(message) {
+						var user = users[message['user_id']];
+						app.actions.notify(message['id'], 'Сообщение от ' + user['first_name'] + ' ' + user['last_name'],
+							message['body'], user['photo_50'], useWebApi);
 					});
 				});
 			});
+		},
+		notify: function(id, title, body, icon, useWebApi) {
+			if (useWebApi && 'Notification' in window) {
+				Notification.requestPermission()
+					.then(function(permission) {
+						if (permission === 'granted') {
+							new Notification(title, {
+								body: body,
+								icon: icon
+							});
+						} else {
+							// Разрешение не получено
+						}
+					});
+			} else {
+				chrome.notifications.create(id.toString(), {
+					type: 'basic',
+					title: title,
+					message: body,
+					iconUrl: icon
+				});
+			}
 		},
 		initTimer: function() {
 			if (app.data.timerId !== false) {
