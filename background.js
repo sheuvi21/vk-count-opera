@@ -35,10 +35,7 @@ var app = {
 			chrome.storage.local.get([TOKEN_STORAGE, NOTIFY_STORAGE, LAST_MESSAGE_ID_STORAGE], function(storage) {
 				if (storage[TOKEN_STORAGE] !== undefined) {
 					app.data.token = storage[TOKEN_STORAGE];
-					if (app.data.timerId !== false) {
-						clearInterval(app.data.timerId);
-					}
-					app.data.timerId = setInterval(app.actions.sync, app.data.interval);
+					app.actions.initTimer();
 				}
 				if (storage[NOTIFY_STORAGE] === undefined) {
 					app.actions.setStorageValue(NOTIFY_STORAGE, true);
@@ -53,6 +50,7 @@ var app = {
 				var count = response['response']['count'];
 				if (count > 0) {
 					chrome.browserAction.setBadgeBackgroundColor({ 'color': app.data.activeColor });
+					chrome.browserAction.setBadgeText({ 'text': count.toString() });
 					var items = response['response']['items'];
 					var messages = [];
 					chrome.storage.local.get([LAST_MESSAGE_ID_STORAGE], function(storage) {
@@ -79,9 +77,8 @@ var app = {
 					});
 				}
 				else {
-					chrome.browserAction.setBadgeBackgroundColor({ 'color': app.data.inactiveColor });
+					chrome.browserAction.setBadgeText({ 'text': '' });
 				}
-				chrome.browserAction.setBadgeText({ 'text': count.toString() });
 			});
 		},
 		setStorageValue: function(name, value) {
@@ -113,6 +110,13 @@ var app = {
 					});
 				});
 			});
+		},
+		initTimer: function() {
+			if (app.data.timerId !== false) {
+				clearInterval(app.data.timerId);
+			}
+			app.data.timerId = setInterval(app.actions.sync, app.data.interval);
+			chrome.browserAction.setTitle({ 'title': 'Перейти к диалогам' });
 		}
 	},
 
@@ -128,10 +132,7 @@ var app = {
 						chrome.tabs.onUpdated.addListener(function(tabId, changeInfo) {
 							if (tabId === authTabId && changeInfo.url !== undefined && changeInfo.url.indexOf('access_token') !== -1) {
 								app.data.token = changeInfo.url.split('#')[1].split('&')[0].split('=')[1];
-								if (app.data.timerId !== false) {
-									clearInterval(app.data.timerId);
-								}
-								app.data.timerId = setInterval(app.actions.sync, app.data.interval);
+								app.actions.initTimer();
 								chrome.tabs.remove(tabId);
 								app.actions.setStorageValue(TOKEN_STORAGE, app.data.token);
 							}
