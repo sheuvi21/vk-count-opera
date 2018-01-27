@@ -1,8 +1,12 @@
 const API_VERSION = '5.60';
+
 const TOKEN_STORAGE = 'vk_access_token';
 const NOTIFY_STORAGE = 'notify';
 const LAST_MESSAGE_ID_STORAGE = 'last_message_id';
 const USE_WEB_API_STORAGE = 'use_web_api';
+
+const USER_AUTH_ERROR = 5;
+
 
 var app = {
 
@@ -48,6 +52,15 @@ var app = {
 		},
 		sync: function() {
 			app.helpers.sendRequest(app.data.getDialogsUrl + app.data.token, function(response) {
+				if (response['error'] && response['error']['error_code'] === USER_AUTH_ERROR) {
+					chrome.browserAction.setBadgeBackgroundColor({ 'color': app.data.inactiveColor });
+					chrome.browserAction.setBadgeText({ 'text': '?' });
+					chrome.browserAction.setTitle({ 'title': 'Авторизация' });
+					app.data.token = false;
+					app.actions.removeStorageValue(TOKEN_STORAGE);
+					app.actions.clearTimer();
+					return;
+				}
 				var count = response['response']['count'];
 				if (count > 0) {
 					chrome.browserAction.setBadgeBackgroundColor({ 'color': app.data.activeColor });
@@ -87,6 +100,9 @@ var app = {
 			values[name] = value;
 			chrome.storage.local.set(values);
 		},
+		removeStorageValue: function(name) {
+			chrome.storage.local.remove(name);
+		},
 		showNotifications: function(messages) {
 			var userIds = [];
 			messages.forEach(function(message) {
@@ -116,10 +132,13 @@ var app = {
 				Notification.requestPermission()
 					.then(function(permission) {
 						if (permission === 'granted') {
-							new Notification(title, {
+							var notification = new Notification(title, {
 								body: body,
 								icon: icon
 							});
+							notification.onerror = function(error) {
+								console.log(error);
+							};
 						} else {
 							// Разрешение не получено
 						}
@@ -134,11 +153,15 @@ var app = {
 			}
 		},
 		initTimer: function() {
-			if (app.data.timerId !== false) {
-				clearInterval(app.data.timerId);
-			}
+			app.actions.clearTimer();
 			app.data.timerId = setInterval(app.actions.sync, app.data.interval);
 			chrome.browserAction.setTitle({ 'title': 'Перейти к диалогам' });
+		},
+		clearTimer: function() {
+			if (app.data.timerId !== false) {
+				clearInterval(app.data.timerId);
+				app.data.timerId = false;
+			}
 		}
 	},
 

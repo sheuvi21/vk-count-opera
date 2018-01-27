@@ -19,7 +19,7 @@
 	"permissions": ["tabs", "storage", "notifications", "*://*.vk.com/*", "*://*.userapi.com/*"],
 	"browser_action": {
 		"default_icon": "button_icon.png",
-		"default_title": "Войти ВКонтакте"
+		"default_title": "Авторизация"
 	},
 	"options_page": "options.html"
 }
