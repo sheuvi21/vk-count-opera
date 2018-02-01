@@ -28,6 +28,9 @@ var app = {
 		getUsersUrl: 'https://api.vk.com/method/users.get?' +
 		'v=' + API_VERSION + '&' +
 		'access_token=',
+		getGroupsUrl: 'https://api.vk.com/method/groups.getById?' +
+		'v=' + API_VERSION + '&' +
+		'access_token=',
 		dialogsUrl: 'https://vk.com/im',
 		inactiveColor: '#A6A6A6',
 		activeColor: '#F7421E',
@@ -104,28 +107,53 @@ var app = {
 			chrome.storage.local.remove(name);
 		},
 		showNotifications: function(messages) {
-			var userIds = [];
+			var userIds = [],
+				groupIds = [];
 			messages.forEach(function(message) {
-				userIds.push(message['user_id']);
+				if (message['user_id'] > 0) {
+					userIds.push(message['user_id']);
+				}
+				else {
+					groupIds.push(Math.abs(message['user_id']));
+				}
 			});
 			app.helpers.sendRequest(app.data.getUsersUrl + app.data.token +
 				'&user_ids=' + userIds.join() +
 				'&name_case=gen' + // имя в родительном падеже
 				'&fields=first_name,last_name,photo_50', function(response) {
-				var items = response['response'];
-				var users = {};
-				items.forEach(function(item) {
-					users[item['id']] = item;
-				});
-				chrome.storage.local.get([USE_WEB_API_STORAGE], function(storage) {
-					var useWebApi = storage[USE_WEB_API_STORAGE] === true;
-					messages.forEach(function(message) {
-						var user = users[message['user_id']];
-						app.actions.notify(message['id'], 'Сообщение от ' + user['first_name'] + ' ' + user['last_name'],
-							message['body'], user['photo_50'], useWebApi);
+					var items = response['response'];
+					var users = {};
+					items.forEach(function(item) {
+						users[item['id']] = item;
 					});
+					app.helpers.sendRequest(app.data.getGroupsUrl + app.data.token +
+						'&group_ids=' + groupIds.join() +
+						'&fields=name,photo_50', function(response) {
+							var items = response['response'];
+							var groups = {};
+							items.forEach(function(item) {
+								groups[item['id']] = item;
+							});
+							chrome.storage.local.get([USE_WEB_API_STORAGE], function(storage) {
+								var useWebApi = storage[USE_WEB_API_STORAGE] === true;
+								messages.forEach(function(message) {
+									var title, photo;
+									if (message['user_id'] > 0) {
+										var user = users[message['user_id']];
+										title = 'Сообщение от ' + user['first_name'] + ' ' + user['last_name'];
+										photo = user['photo_50'];
+									}
+									else {
+										var group = groups[Math.abs(message['user_id'])];
+										title = 'Сообщение от ' + group['name'];
+										photo = group['photo_50'];
+									}
+									var user = users[message['user_id']];
+									app.actions.notify(message['id'], title, message['body'], photo, useWebApi);
+								});
+							});
+						});
 				});
-			});
 		},
 		notify: function(id, title, body, icon, useWebApi) {
 			if (useWebApi && 'Notification' in window) {
