@@ -14,12 +14,11 @@
 	},
 	"version": "0.4",
 	"background": {
-		"scripts": ["background.js"]
+		"scripts": ["background.min.js"]
 	},
 	"permissions": ["tabs", "storage", "notifications", "*://*.vk.com/*", "*://*.userapi.com/*"],
 	"browser_action": {
-		"default_icon": "button_icon.png",
-		"default_title": "Авторизация"
+		"default_icon": "button_icon.png"
 	},
 	"options_page": "options.html"
 }
