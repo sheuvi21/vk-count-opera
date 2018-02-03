@@ -12,7 +12,7 @@
 		"48": "icon48.png",
 		"128": "icon128.png"
 	},
-	"version": "0.4",
+	"version": "0.5",
 	"background": {
 		"scripts": ["background.min.js"]
 	},
